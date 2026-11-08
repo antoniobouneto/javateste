@@ -1,0 +1,6 @@
+{
+  "name": "GeoDiário",
+  "description": "GeoDiário - Registro de fotografias com data, hora e geolocalização GPS.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
