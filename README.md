@@ -1,106 +1,117 @@
-# GeoDiário
+﻿# GeoDiário (Flutter)
 
-Aplicação web para registrar momentos com uma foto, título, data/hora e localização GPS. Os registros ficam armazenados localmente no navegador e podem ser consultados em lista, no mapa ou em uma tela de detalhes.
+Aplicação Flutter (Dart) para registrar momentos com foto, título, data/hora e localização GPS. Os registros são armazenados localmente no dispositivo em um banco **SQLite** e podem ser consultados em lista, no mapa ou em uma tela de detalhes.
 
-## Funcionalidades
+> **Código-fonte completo do projeto Flutter**: todo o código-fonte está neste diretório, com a implementação principal em `lib/` (`main.dart`, `models/`, `services/`) e configurações do projeto em `pubspec.yaml`, `android/`, `ios/`, `web/`, etc.
 
-- Capturar uma foto usando a câmera do dispositivo ou escolher uma imagem existente.
-- Obter a localização pelo GPS ou informar latitude e longitude manualmente.
-- Consultar o endereço aproximado das coordenadas via serviço de geocodificação reversa do OpenStreetMap (Nominatim).
-- Pesquisar registros por título ou endereço, visualizar detalhes, compartilhar informações e excluir registros.
-- Ver um mapa OpenStreetMap centrado no registro selecionado.
+## Descrição das funcionalidades implementadas
 
-## Arquitetura
+- **Lista de registros**
+  - Exibição dos registros salvos em cards (miniatura, título, data/hora e coordenadas), ordenados do mais recente para o mais antigo.
+  - Busca por **título** ou **endereço** com opção de limpar a busca.
+  - Estado vazio com atalho para criar o primeiro registro.
+  - Contador de registros no cabeçalho e alternância entre visualização em **Lista** e **Mapa**.
+  - Botão de ação flutuante (**Novo registro**) na tela de lista.
 
-O GeoDiário é uma aplicação frontend React executada no navegador. O fluxo principal é: `src/main.tsx` monta `App`; `App` carrega os registros pelo serviço `storage.ts` e controla a tela atual; os componentes de interface chamam as funções de armazenamento e devolvem as alterações para `App` por meio de callbacks.
+- **Criação de registro (formulário)**
+  - **Fotografia do momento**: captura pela câmera ou seleção de imagem da galeria (via seletor de imagens), com pré-visualização e opção de trocar a foto. A imagem é armazenada como *data URL* em Base64.
+  - **Título/descrição**: campo de texto obrigatório.
+  - **Localização geográfica (GPS)**: obtenção das coordenadas atuais pelo GPS do dispositivo, com exibição de latitude/longitude e endereço (quando disponível).
+  - **Coordenadas manuais**: ajuste/definição manual de latitude e longitude.
+  - **Geocodificação reversa**: consulta ao serviço Nominatim (OpenStreetMap) para obter o endereço aproximado a partir das coordenadas (opcional; falhas não impedem o registro).
+  - **Data e hora**: registradas automaticamente no momento em que o registro é salvo (exibidas em prévia no formulário).
+  - **Validação**: o salvamento só é habilitado quando título, foto e localização estão preenchidos.
+  - Feedback de sucesso ao salvar.
+
+- **Detalhes do registro**
+  - Visualização da foto, título, endereço (quando disponível), data/hora e coordenadas (latitude/longitude).
+  - **Mapa incorporado** (OpenStreetMap via `flutter_map`) centralizado no local do registro com marcador.
+  - **Links externos** para abrir o local no Google Maps e no OpenStreetMap.
+  - **Compartilhamento** das informações do registro (título e coordenadas).
+  - **Exclusão** do registro com diálogo de confirmação e remoção permanente do dispositivo, com feedback de sucesso.
+
+- **Mapa de registros**
+  - Mapa com **marcadores** de todos os registros salvos.
+  - Seleção de registros por toque nos marcadores ou por chips/lista de seleção.
+  - Cartão do registro ativo com miniatura, coordenadas e atalho para ver os detalhes completos.
+
+- **Persistência e dados iniciais**
+  - Armazenamento local em **SQLite** (sem sincronização remota).
+  - Inserção automática de **registros de demonstração** quando o banco está vazio, para facilitar a visualização inicial do app.
+
+## Bibliotecas utilizadas
+
+| Biblioteca | Uso |
+| --- | --- |
+| `flutter` (SDK) | Framework de UI e execução da aplicação. |
+| `cupertino_icons` | Ícones no estilo iOS (suporte do Material/Cupertino). |
+| `sqflite` | Banco de dados SQLite local para persistência dos registros. |
+| `path` | Composição de caminhos do sistema de arquivos (ex.: caminho do banco). |
+| `path_provider` | Acesso a diretórios do dispositivo (suporte a armazenamento de arquivos). |
+| `image_picker` | Captura de foto pela câmera e seleção de imagens da galeria. |
+| `geolocator` | Obtenção da localização/GPS do dispositivo e verificação de permissões/serviço. |
+| `http` | Requisições HTTP para geocodificação reversa (Nominatim). |
+| `flutter_map` | Exibição de mapas interativos com camadas/tiles. |
+| `latlong2` | Representação de coordenadas geográficas (`LatLng`) para o mapa. |
+| `intl` | Formatação de data e hora. |
+| `share_plus` | Compartilhamento de informações do registro. |
+| `url_launcher` | Abertura de links externos (Google Maps, OpenStreetMap). |
+
+Dependências de desenvolvimento: `flutter_test` e `flutter_lints`.
+
+## Estrutura da tabela SQLite
+
+- **Banco**: `geodiario_db.db`
+- **Tabela**: `records`
+
+| Coluna | Tipo | Restrições/Observações | Descrição |
+| --- | --- | --- | --- |
+| `id` | `TEXT` | `PRIMARY KEY` | Identificador único do registro (timestamp em milissegundos). |
+| `title` | `TEXT` | `NOT NULL` | Título/descrição do momento. |
+| `imageData` | `TEXT` | `NOT NULL` | Imagem do registro armazenada como *data URL* Base64 (ou URL nas entradas de demonstração). |
+| `latitude` | `REAL` | `NOT NULL` | Latitude (coordenada geográfica). |
+| `longitude` | `REAL` | `NOT NULL` | Longitude (coordenada geográfica). |
+| `createdAt` | `TEXT` | `NOT NULL` | Data/hora de criação em formato ISO 8601. |
+| `address` | `TEXT` | opcional (pode ser nulo) | Endereço aproximado obtido por geocodificação reversa. |
+
+Definição utilizada na criação:
+
+```sql
+CREATE TABLE records(
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  imageData TEXT NOT NULL,
+  latitude REAL NOT NULL,
+  longitude REAL NOT NULL,
+  createdAt TEXT NOT NULL,
+  address TEXT
+);
+```
+
+## Estrutura do projeto (resumo)
 
 ```text
-index.html                 Documento HTML e ponto de montagem (#root)
-src/
-  main.tsx                 Inicializa React e renderiza App
-  App.tsx                  Estado global da interface e navegação entre telas
-  components/
-    Header.tsx             Navegação entre lista e mapa; ação para novo registro
-    EntriesList.tsx        Lista e pesquisa de registros
-    EntryForm.tsx          Formulário de criação e validação dos campos
-    ImageCapture.tsx       Captura pela câmera ou seleção de arquivo
-    LocationCapture.tsx    GPS, coordenadas manuais e consulta de endereço
-    EntryDetail.tsx        Detalhes, compartilhamento, mapa e exclusão
-    MapView.tsx            Mapa e seletor de registros
+lib/
+  main.dart                    Ponto de entrada, estado/navegação e telas (lista, mapa, formulário, detalhe)
+  models/
+    diary_entry.dart           Modelos DiaryEntry e LocationDataResult
   services/
-    storage.ts             Persistência local em IndexedDB, com fallback
-  types/
-    diary.ts               Tipos DiaryEntry e LocationDataResult
-public/                    Ícones, splash e imagens estáticas
-package.json               Dependências e comandos de desenvolvimento
-vite.config.ts             Vite, plugins React/Tailwind e alias @
+    storage_service.dart       Persistência SQLite (CRUD, ordenação e seed inicial)
+    geocoding_service.dart     Geocodificação reversa via Nominatim
+pubspec.yaml                   Metadados e dependências do projeto
 ```
 
-### Fluxo de criação e leitura
+## Como executar
 
-1. `EntryForm` coleta título, imagem e localização. O botão de salvar só fica habilitado quando os três dados estão preenchidos.
-2. `ImageCapture` usa `getUserMedia` para abrir a câmera e converte a foto capturada em uma URL de dados (Data URL); também aceita imagens escolhidas no dispositivo.
-3. `LocationCapture` usa a API de geolocalização do navegador. Opcionalmente consulta Nominatim para obter o endereço; se necessário, permite inserir as coordenadas manualmente.
-4. Ao salvar, `EntryForm` monta um `DiaryEntry` com identificador, título, imagem, coordenadas e data/hora ISO e chama `insertEntry`.
-5. `storage.ts` grava no IndexedDB. `App` atualiza a lista em memória e mostra os detalhes do registro.
-6. Na inicialização, `App` chama `getAllEntries`; a lista é ordenada da data mais recente para a mais antiga. Se o IndexedDB não estiver disponível ou falhar, o serviço tenta usar `localStorage`.
-
-### Persistência e formato dos dados
-
-Os dados são mantidos no dispositivo/navegador e não há sincronização com uma conta ou banco de dados remoto implementada. O IndexedDB usa o banco `geodiario_db`, o object store `records` e `id` como chave. Imagens são armazenadas junto ao registro como Data URLs, o que pode consumir bastante espaço.
-
-O tipo `DiaryEntry` define o formato persistido:
-
-| Campo | Descrição |
-| --- | --- |
-| `id` | Identificador do registro |
-| `title` | Título ou descrição |
-| `imageData` | Data URL da imagem (ou URL nas entradas de demonstração) |
-| `latitude`, `longitude` | Coordenadas geográficas |
-| `createdAt` | Data/hora em formato ISO 8601 |
-| `address` | Endereço aproximado, opcional |
-
-Quando o armazenamento está vazio e o navegador ainda não marcou `geodiario_initialized` no `localStorage`, `getAllEntries` insere dois registros de demonstração. Depois de limpar os dados, a chave de inicialização influencia se esses exemplos serão inseridos novamente.
-
-## Como funciona a API
-
-**Este projeto não implementa uma API HTTP própria nem endpoints REST.** A dependência Express aparece no `package.json`, mas não há servidor Express ou rotas de API no código da aplicação analisado. A interface funciona como frontend e utiliza estas APIs/serviços do navegador e externos:
-
-- **IndexedDB** e, como alternativa em caso de falha, **localStorage**: persistência dos registros no navegador.
-- **MediaDevices (`getUserMedia`)** e entrada de arquivo: acesso à câmera e seleção de fotos, sujeitos à permissão do usuário e às restrições do navegador.
-- **Geolocation API**: obtenção das coordenadas, mediante permissão do usuário.
-- **Nominatim / OpenStreetMap**: consulta HTTP de geocodificação reversa para converter coordenadas em um endereço legível. A consulta é opcional; se falhar, o registro pode continuar sem endereço.
-- **OpenStreetMap**: mapas incorporados via `iframe`; a tela de detalhes também oferece links externos para OpenStreetMap e Google Maps.
-
-A dependência `@google/genai` e as variáveis `GEMINI_API_KEY`, `APP_URL` e `GOOGLE_MAPS_API_KEY` estão listadas na configuração/template do projeto, mas não há integração com Gemini ou Google Maps API usada no fluxo atual da aplicação. As chaves não são necessárias para executar a interface localmente. Não coloque segredos no código frontend: qualquer variável incorporada ao bundle do navegador pode ser vista pelos usuários.
-
-## Requisitos
-
-- [Bun](https://bun.sh/) instalado (o repositório inclui `bun.lock`).
-- Navegador moderno. Para câmera e geolocalização, conceda as permissões solicitadas; esses recursos normalmente exigem contexto seguro (HTTPS) ou `localhost`.
-
-## Executar localmente
+Pré-requisitos: [Flutter SDK](https://docs.flutter.dev/get-started/install) instalado e configurado.
 
 ```bash
-bun install
-bun run dev
+flutter pub get
+flutter run
 ```
 
-O Vite inicia o servidor na porta `3000`; abra `http://localhost:3000` no navegador.
-
-Comandos adicionais:
-
-```bash
-bun run build    # gera a versão de produção em dist/
-bun run preview  # serve localmente a versão compilada
-bun run lint     # verifica os tipos com tsc --noEmit
-```
-
-Não há script de testes automatizados definido em `package.json`.
-
-## Observações
-
-- Os registros são locais ao navegador e dispositivo. Limpar os dados do site pode apagá-los; não há backup ou sincronização remota.
-- O endereço depende de conexão com a internet e da disponibilidade/política do serviço Nominatim.
-- Os mapas são carregados de OpenStreetMap e também dependem de conexão.
-- A aplicação solicita câmera e geolocalização conforme `metadata.json`; o usuário precisa autorizar essas permissões.
+### Observações de plataforma
+- **Câmera e localização**: conceda as permissões solicitadas pelo sistema. Em Android/iOS, garanta que as permissões de câmera, localização e acesso à internet estejam declaradas nas configurações de plataforma (`AndroidManifest.xml` / `Info.plist`) conforme exigido pelos plugins utilizados.
+- **Mapas e geocodificação**: dependem de conexão com a internet (tiles do OpenStreetMap e serviço Nominatim).
+- **Windows**: a compilação com plugins pode exigir o *Modo de Desenvolvedor* habilitado para suporte a *symlinks*.
+- Os dados são locais ao dispositivo; não há backup ou sincronização remota implementada.
